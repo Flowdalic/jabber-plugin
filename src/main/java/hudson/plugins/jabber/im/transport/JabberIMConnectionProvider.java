@@ -1,5 +1,7 @@
 package hudson.plugins.jabber.im.transport;
 
+import java.util.logging.Logger;
+
 import hudson.plugins.im.IMConnection;
 import hudson.plugins.im.IMConnectionProvider;
 import hudson.plugins.im.IMException;
@@ -14,7 +16,7 @@ import hudson.plugins.im.IMPublisherDescriptor;
 final class JabberIMConnectionProvider extends IMConnectionProvider
 {
     private static final IMConnectionProvider INSTANCE = new JabberIMConnectionProvider();
-    
+
     static final synchronized IMConnectionProvider getInstance() {
         return INSTANCE;
     }
@@ -36,7 +38,7 @@ final class JabberIMConnectionProvider extends IMConnectionProvider
         if (getDescriptor() == null) {
         	throw new IMException("Descriptor not set");
         }
-        
+
         IMConnection imConnection = new JabberIMConnection((JabberPublisherDescriptor)getDescriptor(),
         		getAuthenticationHolder());
         if (imConnection.connect()) {
