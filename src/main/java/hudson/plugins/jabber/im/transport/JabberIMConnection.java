@@ -192,6 +192,7 @@ class JabberIMConnection extends AbstractIMConnection {
 	@Override
 	public boolean connect() {
 	    lock();
+	    LOGGER.fine("Trying to connect XMPP connection");
 	    try {
 			try {
 				if (!isConnected()) {
@@ -230,6 +231,8 @@ class JabberIMConnection extends AbstractIMConnection {
 						}
 						return false;
 					}
+				} else {
+					LOGGER.fine("XMPP connection already established");
 				}
 				return true;
 			} catch (final Exception e) {
@@ -279,6 +282,7 @@ class JabberIMConnection extends AbstractIMConnection {
 	private boolean createConnection() throws XMPPException, SaslException,
 			SmackException, IOException, NoSuchAlgorithmException,
 			KeyManagementException {
+		LOGGER.fine("Trying to create a new XMPP connection instance");
 		if (this.connection != null) {
 			try {
 				this.connection.disconnect();

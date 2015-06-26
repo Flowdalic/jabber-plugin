@@ -17,6 +17,8 @@ final class JabberIMConnectionProvider extends IMConnectionProvider
 {
     private static final IMConnectionProvider INSTANCE = new JabberIMConnectionProvider();
 
+    private static final Logger LOGGER = Logger.getLogger(JabberIMConnectionProvider.class.getName());
+
     static final synchronized IMConnectionProvider getInstance() {
         return INSTANCE;
     }
@@ -39,6 +41,7 @@ final class JabberIMConnectionProvider extends IMConnectionProvider
         	throw new IMException("Descriptor not set");
         }
 
+        LOGGER.info("Creating XMPP JabberIMConnection");
         IMConnection imConnection = new JabberIMConnection((JabberPublisherDescriptor)getDescriptor(),
         		getAuthenticationHolder());
         if (imConnection.connect()) {
