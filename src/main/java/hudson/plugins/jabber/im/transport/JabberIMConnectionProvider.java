@@ -1,5 +1,6 @@
 package hudson.plugins.jabber.im.transport;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import hudson.plugins.im.IMConnection;
@@ -42,8 +43,14 @@ final class JabberIMConnectionProvider extends IMConnectionProvider
         }
 
         LOGGER.info("Creating XMPP JabberIMConnection");
-        IMConnection imConnection = new JabberIMConnection((JabberPublisherDescriptor)getDescriptor(),
+        IMConnection imConnection;
+        try {
+        	imConnection = new JabberIMConnection((JabberPublisherDescriptor)getDescriptor(),
         		getAuthenticationHolder());
+        } catch (RuntimeException e) {
+        	LOGGER.log(Level.WARNING, "exception", e);
+        	throw e;
+        }
         if (imConnection.connect()) {
         	return imConnection;
         }

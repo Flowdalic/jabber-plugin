@@ -191,8 +191,9 @@ class JabberIMConnection extends AbstractIMConnection {
 
 	@Override
 	public boolean connect() {
+		LOGGER.info("connect() before log");
 	    lock();
-	    LOGGER.fine("Trying to connect XMPP connection");
+	    LOGGER.info("Trying to connect XMPP connection");
 	    try {
 			try {
 				if (!isConnected()) {
