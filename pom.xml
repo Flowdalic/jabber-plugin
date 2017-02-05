@@ -30,7 +30,7 @@
     
     <properties>
   	  <version.instant-messaging.plugin>1.35</version.instant-messaging.plugin>
-        <version.smack>4.1.7</version.smack>
+        <version.smack>4.1.9</version.smack>
   	</properties>
   	
   	<build>
