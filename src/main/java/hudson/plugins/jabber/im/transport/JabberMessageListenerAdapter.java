@@ -20,6 +20,6 @@ class JabberMessageListenerAdapter extends AbstractJabberMessageListenerAdapter 
 
     @Override
     public void processMessage(Chat chat, Message msg) {
-        processMessage(msg);
+        super.processMessage(msg);
     }
 }
