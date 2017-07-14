@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.jvnet.hudson.plugins</groupId>
         <artifactId>instant-messaging-parent</artifactId>
-        <version>1.24</version>
+        <version>1.26</version>
         <relativePath>../instant-messaging-parent-plugin/pom.xml</relativePath>
     </parent>
     
     <artifactId>jabber</artifactId>
     <packaging>hpi</packaging>
     <name>Jenkins Jabber notifier plugin</name>
-    <version>1.27-SNAPSHOT</version>
+    <version>1.36-SNAPSHOT</version>
     <url>http://wiki.jenkins-ci.org/display/JENKINS/Jabber+Plugin</url>
     <developers>
         <developer>
@@ -29,8 +29,29 @@
     </licenses>
     
     <properties>
-  	  <version.instant-messaging.plugin>1.30</version.instant-messaging.plugin>
+  	  <version.instant-messaging.plugin>1.35</version.instant-messaging.plugin>
+        <version.smack>4.1.9</version.smack>
   	</properties>
+  	
+  	<build>
+  		<plugins>
+  			<plugin>
+	          <artifactId>maven-compiler-plugin</artifactId>
+	          <version>3.2</version>
+	          <configuration>
+	            <source>1.7</source>
+	            <target>1.7</target>
+	          </configuration>
+	        </plugin>
+	        <plugin>
+	          <artifactId>maven-javadoc-plugin</artifactId>
+	          <version>2.10.1</version>
+	          <configuration>
+	          	<skip>true</skip>
+	          </configuration>
+	        </plugin>
+  		</plugins>
+  	</build>
     
     <dependencies>
         <dependency>
@@ -47,19 +68,19 @@
         <dependency>
             <groupId>org.igniterealtime.smack</groupId>
             <artifactId>smack-extensions</artifactId>
-            <version>4.0.4</version>
+            <version>${version.smack}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.igniterealtime.smack</groupId>
-            <artifactId>smack-resolver-javax</artifactId>
-            <version>4.0.4</version>
+            <artifactId>smack-java7</artifactId>
+            <version>${version.smack}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.igniterealtime.smack</groupId>
             <artifactId>smack-tcp</artifactId>
-            <version>4.0.4</version>
+            <version>${version.smack}</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>
