@@ -3,29 +3,12 @@
  */
 package hudson.plugins.jabber.im.transport;
 
-import hudson.Util;
-import hudson.plugins.im.AbstractIMConnection;
-import hudson.plugins.im.AuthenticationHolder;
-import hudson.plugins.im.GroupChatIMMessageTarget;
-import hudson.plugins.im.IMConnection;
-import hudson.plugins.im.IMConnectionListener;
-import hudson.plugins.im.IMException;
-import hudson.plugins.im.IMMessageTarget;
-import hudson.plugins.im.IMPresence;
-import hudson.plugins.im.bot.Bot;
-import hudson.plugins.im.tools.ExceptionHelper;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.security.Principal;
-import java.security.SecureRandom;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -38,42 +21,36 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
+import javax.net.SocketFactory;
 import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import javax.security.auth.kerberos.KerberosPrincipal;
 import javax.security.sasl.SaslException;
 
-import hudson.util.DaemonThreadFactory;
-import hudson.util.NamingThreadFactory;
 import org.apache.commons.io.IOUtils;
 import org.jivesoftware.smack.AbstractConnectionListener;
-import org.jivesoftware.smack.chat.Chat;
-import org.jivesoftware.smack.chat.ChatManager;
 import org.jivesoftware.smack.ConnectionListener;
 import org.jivesoftware.smack.ReconnectionManager;
-import org.jivesoftware.smack.StanzaListener;
-import org.jivesoftware.smack.roster.Roster;
-import org.jivesoftware.smack.roster.Roster.SubscriptionMode;
-import org.jivesoftware.smack.roster.RosterEntry;
 import org.jivesoftware.smack.SmackConfiguration;
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
+import org.jivesoftware.smack.StanzaListener;
 import org.jivesoftware.smack.XMPPException;
+import org.jivesoftware.smack.chat.Chat;
+import org.jivesoftware.smack.chat.ChatManager;
 import org.jivesoftware.smack.filter.MessageTypeFilter;
 import org.jivesoftware.smack.filter.StanzaFilter;
-import org.jivesoftware.smack.packet.Message;
-import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.packet.ExtensionElement;
+import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
-import org.jivesoftware.smack.roster.packet.RosterPacket.ItemType;
+import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.packet.XMPPError.Condition;
 import org.jivesoftware.smack.proxy.ProxyInfo;
 import org.jivesoftware.smack.proxy.ProxyInfo.ProxyType;
+import org.jivesoftware.smack.roster.Roster;
+import org.jivesoftware.smack.roster.Roster.SubscriptionMode;
+import org.jivesoftware.smack.roster.RosterEntry;
+import org.jivesoftware.smack.roster.packet.RosterPacket.ItemType;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smack.util.TLSUtils;
@@ -88,7 +65,19 @@ import org.jivesoftware.smackx.vcardtemp.packet.VCard;
 import org.jxmpp.util.XmppStringUtils;
 import org.springframework.util.Assert;
 
-import sun.security.util.HostnameChecker;
+import hudson.Util;
+import hudson.plugins.im.AbstractIMConnection;
+import hudson.plugins.im.AuthenticationHolder;
+import hudson.plugins.im.GroupChatIMMessageTarget;
+import hudson.plugins.im.IMConnection;
+import hudson.plugins.im.IMConnectionListener;
+import hudson.plugins.im.IMException;
+import hudson.plugins.im.IMMessageTarget;
+import hudson.plugins.im.IMPresence;
+import hudson.plugins.im.bot.Bot;
+import hudson.plugins.im.tools.ExceptionHelper;
+import hudson.util.DaemonThreadFactory;
+import hudson.util.NamingThreadFactory;
 
 /**
  * Smack-specific implementation of {@link IMConnection}.
@@ -195,55 +184,63 @@ class JabberIMConnection extends AbstractIMConnection {
 	public boolean connect() {
 		LOGGER.info("connect() before log");
 	    lock();
-	    LOGGER.info("Trying to connect XMPP connection");
-	    try {
-			try {
-				if (!isConnected()) {
-					if (createConnection()) {
-						LOGGER.info("Connected to XMPP on "
-								+ this.connection.getHost() + ":" + this.connection.getPort()
-								+ "/" + this.connection.getServiceName()
-								+ (this.connection.isSecureConnection() ? " using secure connection" : "")
-								+ (this.connection.isUsingCompression() ? " using compression" : ""));
-			
-						// kutzi: I've read somewhere that status must be set, before one can do anything other
-						// Don't know if it's true, but can't hurt, either.
-						sendPresence();
-						
-						groupChatCache.clear();
-						for (IMMessageTarget chat : this.groupChats) {
-						    GroupChatIMMessageTarget groupChat = (GroupChatIMMessageTarget) chat;
-							try {
-								getOrCreateGroupChat(groupChat);
-								LOGGER.info("Joined groupchat " + groupChat.getName());
-							} catch (IMException e) {
-								// if we got here, the XMPP connection could be established, but probably the groupchat name
-								// is invalid
-								LOGGER.warning("Unable to connect to groupchat '" + groupChat.getName() + "'. Did you append @conference or so to the name?\n"
-										+ "Exception: " + ExceptionHelper.dump(e));
-							}
-						}
-					} else {
-						// clean-up if needed
-						if (this.connection != null) {
-							try {
-								this.connection.disconnect();
-							} catch (Exception e) {
-								// ignore
-							}
-						}
-						return false;
-					}
+		try {
+			LOGGER.info("Trying to connect XMPP connection");
+			if (this.connection != null && this.connection.isConnected()) {
+				LOGGER.fine("XMPP connection already established");
+			} else {
+				LOGGER.fine("creating new XMPP connection");
+				boolean connectingSucceeded = createConnection(); 
+				if (connectingSucceeded) {
+					initNewConnection();
 				} else {
-					LOGGER.fine("XMPP connection already established");
+					disconnect();
+					return false;
 				}
-				return true;
-			} catch (final Exception e) {
-				LOGGER.warning(ExceptionHelper.dump(e));
-				return false;
 			}
+			return true;
+		} catch (final Exception e) {
+			LOGGER.warning(ExceptionHelper.dump(e));
+			return false;
 		} finally {
 		    unlock();
+		}
+	}
+
+	private void disconnect() {
+		// clean-up if needed
+		if (this.connection != null && this.connection.isConnected()) {
+			try {
+				this.connection.disconnect();
+			} catch (Exception e) {
+				// ignore
+			}
+		}
+	}
+
+	private void initNewConnection() {
+		LOGGER.info("Connected to XMPP on "
+				+ this.connection.getHost() + ":" + this.connection.getPort()
+				+ "/" + this.connection.getServiceName()
+				+ (this.connection.isSecureConnection() ? " using secure connection" : "")
+				+ (this.connection.isUsingCompression() ? " using compression" : ""));
+
+		// kutzi: I've read somewhere that status must be set, before one can do anything other
+		// Don't know if it's true, but can't hurt, either.
+		sendPresence();
+		
+		groupChatCache.clear();
+		for (IMMessageTarget chat : this.groupChats) {
+		    GroupChatIMMessageTarget groupChat = (GroupChatIMMessageTarget) chat;
+			try {
+				getOrCreateGroupChat(groupChat);
+				LOGGER.info("Joined groupchat " + groupChat.getName());
+			} catch (IMException e) {
+				// if we got here, the XMPP connection could be established, but probably the groupchat name
+				// is invalid
+				LOGGER.warning("Unable to connect to groupchat '" + groupChat.getName() + "'. Did you append @conference or so to the name?\n"
+						+ "Exception: " + ExceptionHelper.dump(e));
+			}
 		}
 	}
 
@@ -288,8 +285,10 @@ class JabberIMConnection extends AbstractIMConnection {
 		LOGGER.fine("Trying to create a new XMPP connection instance");
 		if (this.connection != null) {
 			try {
+				LOGGER.fine("Already connected, trying a disconnect first");
 				this.connection.disconnect();
 			} catch (Exception ignore) {
+				LOGGER.info("Caught an exception while disconnecting before reconnect: " + ignore.getMessage());
 				// ignore
 			}
 		}
@@ -312,13 +311,25 @@ class JabberIMConnection extends AbstractIMConnection {
 		
 		String serviceName = desc.getServiceName();
 		final XMPPTCPConnectionConfiguration.Builder cfg = XMPPTCPConnectionConfiguration.builder();
-		if (serviceName == null) {
-			cfg.setHost(hostnameOverride).setPort(port).setProxyInfo(pi);
-		} else if (this.hostnameOverride == null) {
-		    // uses DNS lookup, to get the actual hostname for this service: 
-			cfg.setServiceName(serviceName).setProxyInfo(pi);
+		
+		if (pi.getProxyType() == ProxyType.NONE) {
+			cfg.setSocketFactory(SocketFactory.getDefault());
 		} else {
-			cfg.setHost(hostnameOverride).setPort(port).setServiceName(serviceName).setProxyInfo(pi);
+			cfg.setProxyInfo(pi);
+		}
+		
+		if (serviceName == null) {
+			cfg
+			    .setHost(hostnameOverride)
+			    .setPort(port);
+		} else if (this.hostnameOverride == null) {
+		    // uses DNS lookup, to get the actual hostname for this service:			
+			cfg.setServiceName(serviceName);
+		} else {
+			cfg
+			    .setHost(hostnameOverride)
+			    .setPort(port)
+			    .setServiceName(serviceName);
 		}
 
 		
