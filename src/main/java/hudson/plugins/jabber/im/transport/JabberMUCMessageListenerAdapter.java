@@ -1,6 +1,5 @@
 package hudson.plugins.jabber.im.transport;
 
-import hudson.plugins.im.IMMessage;
 import hudson.plugins.im.IMMessageListener;
 
 import org.jivesoftware.smack.MessageListener;
@@ -17,7 +16,7 @@ class JabberMUCMessageListenerAdapter extends AbstractJabberMessageListenerAdapt
     // We may want to use information from the MUC instance in future
     @SuppressWarnings("unused")
     private final MultiUserChat muc;
-    
+
     public JabberMUCMessageListenerAdapter(IMMessageListener listener,
     		JabberIMConnection connection, MultiUserChat muc) {
         super(listener, connection);

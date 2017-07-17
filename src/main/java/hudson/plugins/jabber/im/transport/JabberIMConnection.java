@@ -3,6 +3,18 @@
  */
 package hudson.plugins.jabber.im.transport;
 
+import hudson.Util;
+import hudson.plugins.im.AbstractIMConnection;
+import hudson.plugins.im.AuthenticationHolder;
+import hudson.plugins.im.GroupChatIMMessageTarget;
+import hudson.plugins.im.IMConnection;
+import hudson.plugins.im.IMConnectionListener;
+import hudson.plugins.im.IMException;
+import hudson.plugins.im.IMMessageTarget;
+import hudson.plugins.im.IMPresence;
+import hudson.plugins.im.bot.Bot;
+import hudson.plugins.im.tools.ExceptionHelper;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,30 +39,32 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocketFactory;
 import javax.security.sasl.SaslException;
 
+import hudson.util.DaemonThreadFactory;
+import hudson.util.NamingThreadFactory;
 import org.apache.commons.io.IOUtils;
 import org.jivesoftware.smack.AbstractConnectionListener;
-import org.jivesoftware.smack.ConnectionListener;
-import org.jivesoftware.smack.ReconnectionManager;
-import org.jivesoftware.smack.SmackConfiguration;
-import org.jivesoftware.smack.SmackException;
-import org.jivesoftware.smack.SmackException.NotConnectedException;
-import org.jivesoftware.smack.StanzaListener;
-import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.chat.Chat;
 import org.jivesoftware.smack.chat.ChatManager;
-import org.jivesoftware.smack.filter.MessageTypeFilter;
-import org.jivesoftware.smack.filter.StanzaFilter;
-import org.jivesoftware.smack.packet.ExtensionElement;
-import org.jivesoftware.smack.packet.Message;
-import org.jivesoftware.smack.packet.Presence;
-import org.jivesoftware.smack.packet.Stanza;
-import org.jivesoftware.smack.packet.XMPPError.Condition;
-import org.jivesoftware.smack.proxy.ProxyInfo;
-import org.jivesoftware.smack.proxy.ProxyInfo.ProxyType;
+import org.jivesoftware.smack.ConnectionListener;
+import org.jivesoftware.smack.ReconnectionManager;
+import org.jivesoftware.smack.StanzaListener;
 import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smack.roster.Roster.SubscriptionMode;
 import org.jivesoftware.smack.roster.RosterEntry;
+import org.jivesoftware.smack.SmackConfiguration;
+import org.jivesoftware.smack.SmackException;
+import org.jivesoftware.smack.SmackException.NotConnectedException;
+import org.jivesoftware.smack.XMPPException;
+import org.jivesoftware.smack.filter.MessageTypeFilter;
+import org.jivesoftware.smack.filter.StanzaFilter;
+import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.packet.ExtensionElement;
+import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.roster.packet.RosterPacket.ItemType;
+import org.jivesoftware.smack.packet.XMPPError.Condition;
+import org.jivesoftware.smack.proxy.ProxyInfo;
+import org.jivesoftware.smack.proxy.ProxyInfo.ProxyType;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
 import org.jivesoftware.smack.util.TLSUtils;
@@ -64,20 +78,6 @@ import org.jivesoftware.smackx.vcardtemp.VCardManager;
 import org.jivesoftware.smackx.vcardtemp.packet.VCard;
 import org.jxmpp.util.XmppStringUtils;
 import org.springframework.util.Assert;
-
-import hudson.Util;
-import hudson.plugins.im.AbstractIMConnection;
-import hudson.plugins.im.AuthenticationHolder;
-import hudson.plugins.im.GroupChatIMMessageTarget;
-import hudson.plugins.im.IMConnection;
-import hudson.plugins.im.IMConnectionListener;
-import hudson.plugins.im.IMException;
-import hudson.plugins.im.IMMessageTarget;
-import hudson.plugins.im.IMPresence;
-import hudson.plugins.im.bot.Bot;
-import hudson.plugins.im.tools.ExceptionHelper;
-import hudson.util.DaemonThreadFactory;
-import hudson.util.NamingThreadFactory;
 
 /**
  * Smack-specific implementation of {@link IMConnection}.
@@ -188,17 +188,16 @@ class JabberIMConnection extends AbstractIMConnection {
 			LOGGER.info("Trying to connect XMPP connection");
 			if (this.connection != null && this.connection.isConnected()) {
 				LOGGER.fine("XMPP connection already established");
-			} else {
-				LOGGER.fine("creating new XMPP connection");
-				boolean connectingSucceeded = createConnection(); 
-				if (connectingSucceeded) {
-					initNewConnection();
-				} else {
-					disconnect();
-					return false;
-				}
+				return true;
 			}
-			return true;
+			LOGGER.fine("creating new XMPP connection");
+			boolean connectingSucceeded = createConnection(); 
+			if (connectingSucceeded) {
+				initNewConnection();
+			} else {
+				disconnect();
+			}
+			return connectingSucceeded;
 		} catch (final Exception e) {
 			LOGGER.warning(ExceptionHelper.dump(e));
 			return false;
@@ -213,7 +212,7 @@ class JabberIMConnection extends AbstractIMConnection {
 			try {
 				this.connection.disconnect();
 			} catch (Exception e) {
-				// ignore
+				LOGGER.info("Exception while disconnecting: " + e.getMessage());
 			}
 		}
 	}
